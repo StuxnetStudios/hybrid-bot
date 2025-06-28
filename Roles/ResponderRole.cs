@@ -92,9 +92,9 @@ namespace HybridBot.Roles
             }
             
             // Check for question patterns or conversational cues
-            var input = context.Input.ToLower();
+            var inputText = context.Input.ToLower();
             var questionIndicators = new[] { "?", "what", "how", "when", "where", "why", "can you", "could you", "please" };
-            var hasQuestionPattern = questionIndicators.Any(indicator => input.Contains(indicator));
+            var hasQuestionPattern = questionIndicators.Any(indicator => inputText.Contains(indicator));
             
             // Always handle if it's a direct question or if fallback is enabled
             return hasQuestionPattern || _fallbackEnabled;
