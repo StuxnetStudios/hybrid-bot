@@ -1,0 +1,64 @@
+# .NET Core / .NET 5+
+bin/
+obj/
+out/
+publish/
+
+# Visual Studio / Visual Studio Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Application specific
+State/
+Logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Package files
+*.nupkg
+*.snupkg
+packages/
+
+# Runtime files
+appsettings.Development.json
+appsettings.local.json
+launchSettings.json
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Azure Functions
+local.settings.json
+host.json
+
+# Bot specific
+conversation_history/
+user_profiles/
+cached_responses/

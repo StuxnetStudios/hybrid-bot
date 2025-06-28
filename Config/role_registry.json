@@ -1,0 +1,48 @@
+{
+  "roles": [
+    {
+      "roleId": "summarizer",
+      "typeName": "HybridBot.Roles.SummarizerRole",
+      "configuration": {
+        "summary_length": "medium",
+        "include_sentiment": true,
+        "focus_keywords": ["important", "key", "critical", "main"],
+        "output_format": "structured",
+        "priority": 70,
+        "tags": ["summarization", "content", "analysis", "text-processing"],
+        "metadata": {
+          "description": "Summarizes long content and conversation history",
+          "author": "HybridBot Team",
+          "version": "1.0.0",
+          "last_updated": "2025-06-28"
+        }
+      }
+    },
+    {
+      "roleId": "responder",
+      "typeName": "HybridBot.Roles.ResponderRole",
+      "configuration": {
+        "response_style": "friendly",
+        "max_response_length": 200,
+        "include_followup": true,
+        "knowledge_domains": ["general", "technology", "help"],
+        "fallback_enabled": true,
+        "priority": 60,
+        "tags": ["response", "conversation", "interaction", "dialogue"],
+        "metadata": {
+          "description": "Generates contextual responses to user inputs",
+          "author": "HybridBot Team",
+          "version": "1.0.0",
+          "last_updated": "2025-06-28"
+        }
+      }
+    }
+  ],
+  "global_settings": {
+    "max_concurrent_roles": 5,
+    "default_execution_mode": "FirstMatch",
+    "enable_state_persistence": true,
+    "log_level": "Information",
+    "cleanup_interval_hours": 24
+  }
+}

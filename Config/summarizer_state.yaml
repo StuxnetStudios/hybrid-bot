@@ -1,0 +1,116 @@
+# Summarizer Role State Configuration
+# This YAML file defines the persistent state structure and behavior for the Summarizer role
+
+role_id: summarizer
+state_version: "1.0.0"
+last_updated: "2025-06-28T00:00:00Z"
+
+# State Management Configuration
+state_config:
+  persistence_enabled: true
+  auto_cleanup: true
+  cleanup_age_days: 30
+  max_history_entries: 100
+
+# Default State Values
+default_state:
+  summary_cache: {}
+  processed_content_hashes: []
+  user_preferences:
+    preferred_length: "medium"
+    preferred_format: "text"
+    include_sentiment: false
+  
+  # Statistics tracking
+  stats:
+    summaries_generated: 0
+    total_content_processed: 0
+    average_compression_ratio: 0.0
+    last_activity: null
+
+# State Schema Definitions
+state_schema:
+  summary_cache:
+    type: "dictionary"
+    description: "Cache of recently generated summaries"
+    max_entries: 50
+    ttl_hours: 24
+    
+  processed_content_hashes:
+    type: "array"
+    description: "Hashes of previously processed content to avoid duplication"
+    max_entries: 1000
+    
+  user_preferences:
+    type: "object"
+    properties:
+      preferred_length:
+        type: "string"
+        enum: ["short", "medium", "long"]
+        default: "medium"
+      preferred_format:
+        type: "string"
+        enum: ["text", "bullet_points", "structured"]
+        default: "text"
+      include_sentiment:
+        type: "boolean"
+        default: false
+
+# Behavior Configuration
+behavior:
+  auto_summarize_threshold: 500  # Auto-summarize content longer than this
+  cache_enabled: true
+  duplicate_detection: true
+  sentiment_analysis: true
+  
+  # Content processing rules
+  processing_rules:
+    - name: "skip_short_content"
+      condition: "content_length < 100"
+      action: "return_original"
+    
+    - name: "auto_detect_language"
+      condition: "always"
+      action: "set_language_context"
+    
+    - name: "preserve_formatting"
+      condition: "structured_content"
+      action: "maintain_structure"
+
+# Integration Settings
+integrations:
+  azure_cognitive_services:
+    enabled: false
+    endpoint: ""
+    key_vault_secret: "summarizer-cognitive-key"
+    
+  external_nlp:
+    enabled: false
+    provider: "custom"
+    endpoint: ""
+    
+  analytics:
+    enabled: true
+    track_performance: true
+    export_metrics: true
+
+# Performance Tuning
+performance:
+  max_content_length: 50000  # Maximum content length to process
+  parallel_processing: false
+  batch_size: 10
+  timeout_seconds: 30
+  
+# Error Handling
+error_handling:
+  retry_attempts: 3
+  fallback_to_simple: true
+  log_errors: true
+  notify_on_failure: false
+
+# Metadata
+metadata:
+  created_by: "HybridBot Framework"
+  purpose: "State management for content summarization role"
+  dependencies: []
+  tags: ["summarization", "state", "nlp", "content-processing"]
