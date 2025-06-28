@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using HybridBot.Core;
 using HybridBot.Roles;
 using System;
@@ -12,7 +14,8 @@ namespace HybridBot
 {
     /// <summary>
     /// Main program entry point for the Hybrid Bot Orchestration System.
-    /// Demonstrates the tag-annotated role architecture with class-based implementations.
+    /// Demonstrates the tag-annotated role architecture with class-based implementations
+    /// and Semantic Kernel integration for intelligent orchestration.
     /// </summary>
     class Program
     {
@@ -51,14 +54,62 @@ namespace HybridBot
                     // Add configuration
                     services.AddSingleton(configuration);
 
+                    // Add Semantic Kernel
+                    services.AddKernel();
+                    
+                    // Add HTTP client for Skynet-lite
+                    services.AddHttpClient<SkynetLiteConnector>(client =>
+                    {
+                        var skynetConfig = configuration.GetSection("SkynetLite").Get<SkynetLiteConfig>() ?? new SkynetLiteConfig();
+                        client.BaseAddress = new Uri(skynetConfig.BaseUrl);
+                        client.Timeout = TimeSpan.FromSeconds(skynetConfig.TimeoutSeconds);
+                        
+                        if (!string.IsNullOrEmpty(skynetConfig.ApiKey))
+                        {
+                            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {skynetConfig.ApiKey}");
+                        }
+                    });
+                    
+                    // Configure Semantic Kernel with Skynet-lite only
+                    services.AddSingleton<Kernel>(serviceProvider =>
+                    {
+                        var kernelBuilder = Kernel.CreateBuilder();
+                        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+                        
+                        // Get Skynet-lite configuration
+                        var skynetConfig = configuration.GetSection("SkynetLite").Get<SkynetLiteConfig>();
+                        
+                        if (skynetConfig != null && !string.IsNullOrEmpty(skynetConfig.ApiKey))
+                        {
+                            // Create and register Skynet-lite connector
+                            var httpClient = serviceProvider.GetRequiredService<HttpClient>();
+                            var skynetLogger = serviceProvider.GetRequiredService<ILogger<SkynetLiteConnector>>();
+                            var skynetConnector = new SkynetLiteConnector(httpClient, skynetLogger, skynetConfig);
+                            
+                            kernelBuilder.Services.AddSingleton<IChatCompletionService>(skynetConnector);
+                            logger.LogInformation("Configured Semantic Kernel with Skynet-lite service");
+                        }
+                        else
+                        {
+                            logger.LogError("Skynet-lite API key is required. Please configure the SkynetLite:ApiKey setting.");
+                            throw new InvalidOperationException("Skynet-lite API key is not configured. The application requires a valid API key to function.");
+                        }
+                        
+                        return kernelBuilder.Build();
+                    });
+
                     // Add core services
                     services.AddSingleton<StateManager>();
                     services.AddSingleton<RoleRegistry>();
                     services.AddSingleton<BotOrchestrator>();
+                    services.AddSingleton<SemanticOrchestrator>();
 
                     // Add roles
                     services.AddTransient<SummarizerRole>();
                     services.AddTransient<ResponderRole>();
+                    services.AddTransient<TestRole>();
+                    services.AddTransient<SemanticKernelRole>();
+                    services.AddTransient<SkynetLiteRole>();
 
                     // Add demo service
                     services.AddTransient<BotDemo>();

@@ -34,7 +34,7 @@ namespace HybridBot.Roles
         {
             // TODO: GitHub Copilot should suggest configuration loading here
             // Try typing a comment like "// Load test_mode from config" and see Copilot suggestions
-            
+
             await Task.CompletedTask;
         }
         

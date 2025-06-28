@@ -26,9 +26,21 @@
 ### 8. Testing
 "Generate unit tests for the SummarizerRole focusing on different content types and edge cases."
 
-## Code Completion Tests:
+### 9. Skynet-lite Integration
+"How can I optimize the SkynetLiteRole for better performance and implement custom response formatting?"
 
-### In TestRole.cs, try typing these comments and see what Copilot suggests:
+### 10. Error Handling Enhancement
+"Add comprehensive error handling to the SkynetLiteRole for API failures and timeout scenarios without fallback logic."
+
+### 11. Custom Connectors
+"Extend the SkynetLiteConnector to support streaming responses and custom authentication methods."
+
+### 12. Configuration Validation
+"Create a configuration validator to ensure all required Skynet-lite settings are properly configured before startup."
+
+## Code Completion Tests
+
+### In TestRole.cs, try typing these comments and see what Copilot suggests
 
 1. `// Load configuration from frontmatter`
 2. `// Check if input contains test keywords`
@@ -36,14 +48,21 @@
 4. `// Validate input length and format`
 5. `// Add delay if configured`
 
-### In any role file, try:
+### In any role file, try
 
 1. `// Create a new role that handles`
 2. `// Implement async pattern for`
 3. `// Add logging for performance monitoring`
 4. `// Parse YAML configuration for`
 
-## Expected Behaviors:
+### In SkynetLiteRole.cs, try
+
+1. `// Configure Skynet-lite specific parameters`
+2. `// Handle streaming responses from Skynet-lite`
+3. `// Implement custom authentication for Skynet-lite API`
+4. `// Add response post-processing for different styles`
+
+## Expected Behaviors
 
 ✅ Copilot should understand your hybrid architecture
 ✅ Suggestions should follow your established patterns
