@@ -67,6 +67,11 @@ namespace HybridBot.Core
         public SocialContext Social { get; set; } = new();
         
         /// <summary>
+        /// Geospatial context (location-based data and patterns)
+        /// </summary>
+        public GeospatialContext Geospatial { get; set; } = new();
+        
+        /// <summary>
         /// Original bot context for backward compatibility
         /// </summary>
         public required BotContext BaseContext { get; set; }
@@ -247,5 +252,85 @@ namespace HybridBot.Core
         public StateTransitionReason Reason { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Description { get; set; } = "";
+    }
+    
+    /// <summary>
+    /// Geographical and spatial context for location-aware bot adaptations
+    /// </summary>
+    public class GeospatialContext
+    {
+        /// <summary>
+        /// Current geographical coordinates (latitude, longitude)
+        /// </summary>
+        public (double Latitude, double Longitude)? Coordinates { get; set; }
+        
+        /// <summary>
+        /// Current location name or description
+        /// </summary>
+        public string LocationName { get; set; } = "";
+        
+        /// <summary>
+        /// Geographic region or zone identifier
+        /// </summary>
+        public string Region { get; set; } = "";
+        
+        /// <summary>
+        /// Time zone information
+        /// </summary>
+        public TimeZoneInfo? TimeZone { get; set; }
+        
+        /// <summary>
+        /// Elevation above sea level in meters
+        /// </summary>
+        public double? Elevation { get; set; }
+        
+        /// <summary>
+        /// Spatial boundaries or areas of interest
+        /// </summary>
+        public Dictionary<string, object> SpatialBoundaries { get; set; } = new();
+        
+        /// <summary>
+        /// Distance to important landmarks or points of interest
+        /// </summary>
+        public Dictionary<string, double> DistanceToLandmarks { get; set; } = new();
+        
+        /// <summary>
+        /// Movement history and patterns
+        /// </summary>
+        public List<MovementRecord> MovementHistory { get; set; } = new();
+        
+        /// <summary>
+        /// Current movement speed and direction
+        /// </summary>
+        public MovementVector? CurrentMovement { get; set; }
+        
+        /// <summary>
+        /// Environmental factors specific to this location
+        /// </summary>
+        public Dictionary<string, object> LocationAttributes { get; set; } = new();
+    }
+    
+    /// <summary>
+    /// Movement record for tracking spatial changes over time
+    /// </summary>
+    public class MovementRecord
+    {
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public (double Latitude, double Longitude) Position { get; set; }
+        public double? Speed { get; set; } // meters per second
+        public double? Direction { get; set; } // degrees from north
+        public string MovementType { get; set; } = ""; // walking, driving, stationary, etc.
+    }
+    
+    /// <summary>
+    /// Current movement vector information
+    /// </summary>
+    public class MovementVector
+    {
+        public double Speed { get; set; } // meters per second
+        public double Direction { get; set; } // degrees from north (0-360)
+        public double Acceleration { get; set; } // meters per second squared
+        public string MovementMode { get; set; } = ""; // walking, driving, flying, etc.
+        public DateTime LastUpdate { get; set; } = DateTime.UtcNow;
     }
 }

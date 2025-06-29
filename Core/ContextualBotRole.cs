@@ -22,10 +22,16 @@ namespace HybridBot.Core
         private readonly List<StateTransition> _stateHistory;
         private readonly List<VitalChange> _vitalHistory;
         
+        /// <summary>
+        /// Geographical and spatial context information for location-aware adaptations
+        /// </summary>
+        public GeospatialContext Geospace { get; protected set; }
+        
         protected ContextualBotRole(ILogger logger) : base(logger)
         {
             CurrentState = BotState.Idle;
             Vitals = new BotVitals();
+            Geospace = new GeospatialContext();
             _stateTransitions = InitializeStateTransitions();
             _stateHistory = new List<StateTransition>();
             _vitalHistory = new List<VitalChange>();
@@ -56,6 +62,7 @@ namespace HybridBot.Core
                 await ProcessBotStateContextAsync(context.BotInternalState, response);
                 await ProcessTemporalContextAsync(context.Temporal, response);
                 await ProcessSocialContextAsync(context.Social, response);
+                await ProcessGeospatialContextAsync(response);
                 
                 // Determine if state transition is needed
                 var suggestedState = DetermineOptimalState(context);
@@ -325,6 +332,55 @@ namespace HybridBot.Core
             await Task.CompletedTask;
         }
         
+        protected virtual async Task ProcessGeospatialContextAsync(ContextualResponse response)
+        {
+            // Location-based adaptations
+            if (!string.IsNullOrEmpty(Geospace.LocationName))
+            {
+                response.ContextualAdaptations.Add($"Adapting to location: {Geospace.LocationName}");
+            }
+            
+            // Movement-based adaptations
+            if (IsMoving())
+            {
+                var speed = GetCurrentSpeed();
+                response.ContextualAdaptations.Add($"Adapting to movement (speed: {speed:F1} m/s)");
+                
+                // Moving may drain energy slightly
+                await UpdateVitalsAsync(new VitalChange 
+                { 
+                    VitalType = "Energy", 
+                    Delta = -0.5, 
+                    Reason = "Movement activity" 
+                });
+            }
+            
+            // Landmark proximity adaptations
+            foreach (var landmark in Geospace.DistanceToLandmarks)
+            {
+                if (landmark.Value < 100) // Within 100 meters
+                {
+                    response.ContextualAdaptations.Add($"Near {landmark.Key} ({landmark.Value:F0}m away)");
+                    response.EnvironmentalObservations.Add($"Proximity to {landmark.Key} detected");
+                }
+            }
+            
+            // Regional adaptations
+            if (!string.IsNullOrEmpty(Geospace.Region))
+            {
+                response.ContextualAdaptations.Add($"Regional context: {Geospace.Region}");
+            }
+            
+            // Time zone considerations
+            if (Geospace.TimeZone != null)
+            {
+                var localTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Geospace.TimeZone);
+                response.ContextualAdaptations.Add($"Local time consideration: {localTime:HH:mm}");
+            }
+            
+            await Task.CompletedTask;
+        }
+        
         #endregion
         
         #region State Machine Management
@@ -487,6 +543,128 @@ namespace HybridBot.Core
             // Calculate how familiar the bot is with this type of context
             // This would typically use historical data and pattern recognition
             return 0.8; // Placeholder implementation
+        }
+        
+        #endregion
+        
+        #region Geospatial Context Management
+        
+        /// <summary>
+        /// Update the bot's geographical context
+        /// </summary>
+        /// <param name="coordinates">New geographical coordinates</param>
+        /// <param name="locationName">Human-readable location name</param>
+        /// <param name="region">Geographic region identifier</param>
+        public virtual async Task UpdateGeospatialContextAsync(
+            (double Latitude, double Longitude)? coordinates = null,
+            string locationName = "",
+            string region = "")
+        {
+            if (coordinates.HasValue)
+            {
+                // Record movement if position changed
+                if (Geospace.Coordinates.HasValue && Geospace.Coordinates != coordinates)
+                {
+                    var movementRecord = new MovementRecord
+                    {
+                        Position = coordinates.Value,
+                        Speed = CalculateMovementSpeed(Geospace.Coordinates.Value, coordinates.Value),
+                        Direction = CalculateMovementDirection(Geospace.Coordinates.Value, coordinates.Value)
+                    };
+                    
+                    Geospace.MovementHistory.Add(movementRecord);
+                    
+                    // Limit movement history to prevent memory issues
+                    if (Geospace.MovementHistory.Count > 1000)
+                    {
+                        Geospace.MovementHistory.RemoveRange(0, 500);
+                    }
+                }
+                
+                Geospace.Coordinates = coordinates;
+            }
+            
+            if (!string.IsNullOrEmpty(locationName))
+                Geospace.LocationName = locationName;
+                
+            if (!string.IsNullOrEmpty(region))
+                Geospace.Region = region;
+            
+            _logger.LogDebug("Role {RoleId} geospatial context updated: {Location} at {Coordinates}", 
+                RoleId, locationName, coordinates);
+            
+            // Allow derived classes to react to location changes
+            await OnGeospatialContextChangedAsync();
+        }
+        
+        /// <summary>
+        /// Update distance to a landmark or point of interest
+        /// </summary>
+        /// <param name="landmarkName">Name of the landmark</param>
+        /// <param name="distance">Distance in meters</param>
+        public virtual void UpdateLandmarkDistance(string landmarkName, double distance)
+        {
+            Geospace.DistanceToLandmarks[landmarkName] = distance;
+            
+            _logger.LogDebug("Role {RoleId} distance to {Landmark}: {Distance}m", 
+                RoleId, landmarkName, distance);
+        }
+        
+        /// <summary>
+        /// Check if the bot is within a certain distance of a landmark
+        /// </summary>
+        /// <param name="landmarkName">Name of the landmark</param>
+        /// <param name="maxDistance">Maximum distance in meters</param>
+        /// <returns>True if within range</returns>
+        public virtual bool IsNearLandmark(string landmarkName, double maxDistance)
+        {
+            return Geospace.DistanceToLandmarks.TryGetValue(landmarkName, out var distance) 
+                   && distance <= maxDistance;
+        }
+        
+        /// <summary>
+        /// Get the current movement speed in meters per second
+        /// </summary>
+        /// <returns>Current speed or null if no movement data</returns>
+        public virtual double? GetCurrentSpeed()
+        {
+            return Geospace.CurrentMovement?.Speed;
+        }
+        
+        /// <summary>
+        /// Check if the bot is currently moving
+        /// </summary>
+        /// <param name="minimumSpeed">Minimum speed threshold in m/s (default: 0.1)</param>
+        /// <returns>True if moving above the threshold</returns>
+        public virtual bool IsMoving(double minimumSpeed = 0.1)
+        {
+            var speed = GetCurrentSpeed();
+            return speed.HasValue && speed.Value > minimumSpeed;
+        }
+        
+        private double? CalculateMovementSpeed((double Lat, double Lon) from, (double Lat, double Lon) to)
+        {
+            // Simple distance calculation (Haversine formula would be more accurate)
+            var distance = Math.Sqrt(Math.Pow(to.Lat - from.Lat, 2) + Math.Pow(to.Lon - from.Lon, 2)) * 111000; // rough meters
+            var timeDiff = DateTime.UtcNow - (Geospace.MovementHistory.LastOrDefault()?.Timestamp ?? DateTime.UtcNow);
+            
+            return timeDiff.TotalSeconds > 0 ? distance / timeDiff.TotalSeconds : null;
+        }
+        
+        private double CalculateMovementDirection((double Lat, double Lon) from, (double Lat, double Lon) to)
+        {
+            var deltaLon = to.Lon - from.Lon;
+            var deltaLat = to.Lat - from.Lat;
+            var bearing = Math.Atan2(deltaLon, deltaLat) * 180 / Math.PI;
+            return bearing < 0 ? bearing + 360 : bearing;
+        }
+        
+        /// <summary>
+        /// Override this method to implement role-specific geospatial context change reactions
+        /// </summary>
+        protected virtual async Task OnGeospatialContextChangedAsync()
+        {
+            await Task.CompletedTask;
         }
         
         #endregion

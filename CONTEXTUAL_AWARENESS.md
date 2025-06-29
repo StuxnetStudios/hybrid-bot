@@ -34,11 +34,12 @@ public class BotVitals
 public abstract class ContextualBotRole : BaseBotRole, IContextualBotRole
 {
     // Enhanced contextual processing capabilities
+    public GeospatialContext Geospace { get; protected set; }
 }
 
 public class AdaptiveGamingRole : ContextualBotRole
 {
-    // Gaming-specific contextual adaptations
+    // Gaming-specific contextual adaptations with geospatial awareness
 }
 ```
 
@@ -117,9 +118,35 @@ public class BotStateData
     public Dictionary<string, double> CapabilityLevels { get; set; } = new(); // Skill assessment
     public List<string> ActiveGoals { get; set; } = new();                   // Current objectives
     public Dictionary<string, object> Memory { get; set; } = new();          // Knowledge base
-    public double ConfidenceLevel { get; set; } = 0.8;                      // Self-assessment
 }
 ```
+
+### Geospatial Context Layer
+
+Provides **location-aware adaptations** and spatial intelligence:
+
+```csharp
+public class GeospatialContext
+{
+    public (double Latitude, double Longitude)? Coordinates { get; set; }
+    public string LocationName { get; set; } = "";
+    public Dictionary<string, double> DistanceToLandmarks { get; set; } = new();
+    public List<MovementRecord> MovementHistory { get; set; } = new();
+    public MovementVector? CurrentMovement { get; set; }
+}
+```
+
+**Location-Based Features:**
+- **Landmark Proximity**: Bots react differently near safe zones, danger areas, or points of interest
+- **Movement Tracking**: Speed and direction awareness for dynamic adaptations
+- **Regional Context**: Location-specific strategies and cultural adaptations
+- **Time Zone Awareness**: Local time considerations for scheduling and interactions
+
+**Gaming Applications:**
+- **Safe Zone Detection**: Health regeneration and confidence boost near safe areas
+- **Boss Arena Proximity**: Tactical preparation and energy management
+- **Treasure Detection**: Excitement and motivation boost when near valuable items
+- **Movement Adaptation**: Different strategies for stationary vs. mobile gameplay
 
 ## 🔄 State Machine Management
 

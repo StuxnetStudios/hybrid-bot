@@ -676,5 +676,99 @@ namespace HybridBot.Roles
         }
         
         #endregion
+        
+        #region Geospatial Methods
+        
+        protected override async Task OnInitializeAsync(IDictionary<string, object> config)
+        {
+            // Initialize gaming-specific configuration
+            if (config.TryGetValue("game_mode", out var gameModeValue))
+            {
+                _currentGameMode = gameModeValue?.ToString() ?? "exploration";
+            }
+            
+            if (config.TryGetValue("player_skill_level", out var skillValue) && 
+                double.TryParse(skillValue.ToString(), out var skillLevel))
+            {
+                _playerSkillLevel = skillLevel;
+            }
+            
+            // Initialize strategy success tracking
+            _strategySuccessRates["exploration"] = 75;
+            _strategySuccessRates["combat"] = 60;
+            _strategySuccessRates["puzzle"] = 80;
+            
+            // Initialize geospatial context for gaming scenarios
+            await UpdateGeospatialContextAsync(
+                coordinates: (40.7128, -74.0060), // Default: New York City coordinates as example
+                locationName: "Virtual Gaming World",
+                region: "Digital Realm"
+            );
+            
+            // Add some virtual landmarks for gaming context
+            UpdateLandmarkDistance("Safe Zone", 500.0);
+            UpdateLandmarkDistance("Boss Arena", 1200.0);
+            UpdateLandmarkDistance("Treasure Cache", 300.0);
+            
+            await Task.CompletedTask;
+        }
+        
+        /// <summary>
+        /// Override to handle geospatial context changes in gaming scenarios
+        /// </summary>
+        protected override async Task OnGeospatialContextChangedAsync()
+        {
+            _logger.LogInformation("Gaming role {RoleId} processing location change to {Location}", 
+                RoleId, Geospace.LocationName);
+            
+            // Example: Adjust gaming strategy based on virtual location
+            if (IsNearLandmark("Safe Zone", 100))
+            {
+                await UpdateVitalsAsync(new VitalChange 
+                { 
+                    VitalType = "Health", 
+                    Delta = 5, 
+                    Reason = "Near safe zone - health regeneration" 
+                });
+                
+                // Boost confidence when near safety
+                await UpdateVitalsAsync(new VitalChange 
+                { 
+                    VitalType = "Confidence", 
+                    Delta = 3, 
+                    Reason = "Safe zone proximity boost" 
+                });
+            }
+            
+            if (IsNearLandmark("Boss Arena", 200))
+            {
+                // Prepare for combat - increase tactical vital
+                Vitals.CustomVitals["Tactical"] = Math.Min(Vitals.CustomVitals["Tactical"] + 10, 100);
+                
+                await UpdateVitalsAsync(new VitalChange 
+                { 
+                    VitalType = "Energy", 
+                    Delta = -2, 
+                    Reason = "Boss proximity tension" 
+                });
+            }
+            
+            if (IsNearLandmark("Treasure Cache", 50))
+            {
+                // Excitement about treasure discovery
+                await UpdateVitalsAsync(new VitalChange 
+                { 
+                    VitalType = "Energy", 
+                    Delta = 5, 
+                    Reason = "Treasure discovery excitement" 
+                });
+                
+                Vitals.CustomVitals["Motivational"] = Math.Min(Vitals.CustomVitals["Motivational"] + 15, 100);
+            }
+            
+            await base.OnGeospatialContextChangedAsync();
+        }
+        
+        #endregion
     }
 }
