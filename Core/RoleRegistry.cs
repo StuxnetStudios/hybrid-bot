@@ -28,7 +28,7 @@ namespace HybridBot.Core
         /// <summary>
         /// Register a role instance
         /// </summary>
-        public async Task RegisterRoleAsync(IBotRole role, IDictionary<string, object> config = null)
+        public async Task RegisterRoleAsync(IBotRole role, IDictionary<string, object>? config = null)
         {
             if (role == null) throw new ArgumentNullException(nameof(role));
             
@@ -91,7 +91,7 @@ namespace HybridBot.Core
         /// <summary>
         /// Get role by ID
         /// </summary>
-        public IBotRole GetRole(string roleId)
+        public IBotRole? GetRole(string roleId)
         {
             return _roles.TryGetValue(roleId, out var role) ? role : null;
         }
@@ -144,14 +144,24 @@ namespace HybridBot.Core
             try
             {
                 var json = await File.ReadAllTextAsync(configFilePath);
-                var config = JsonSerializer.Deserialize<RoleRegistryConfig>(json);
-                
-                foreach (var roleConfig in config.Roles)
+                var options = new JsonSerializerOptions
                 {
-                    await LoadRoleFromConfigAsync(roleConfig);
-                }
+                    PropertyNameCaseInsensitive = true
+                };
+                var config = JsonSerializer.Deserialize<RoleRegistryConfig>(json, options);
                 
-                _logger.LogInformation("Loaded {Count} roles from config file", config.Roles.Count);
+                if (config?.Roles != null)
+                {                    foreach (var roleConfig in config.Roles)
+                    {
+                        await LoadRoleFromConfigAsync(roleConfig);
+                    }
+                    
+                    _logger.LogInformation("Loaded {Count} roles from config file", config.Roles.Count);
+                }
+                else
+                {
+                    _logger.LogWarning("No roles found in config file or config is null");
+                }
             }
             catch (Exception ex)
             {
@@ -172,7 +182,7 @@ namespace HybridBot.Core
                     return;
                 }
                 
-                var role = (IBotRole)_serviceProvider.GetService(roleType);
+                var role = _serviceProvider.GetService(roleType) as IBotRole;
                 if (role == null)
                 {
                     _logger.LogError("Failed to create role instance: {TypeName}", roleConfig.TypeName);
@@ -215,8 +225,8 @@ namespace HybridBot.Core
     /// </summary>
     public class RoleConfig
     {
-        public string RoleId { get; set; }
-        public string TypeName { get; set; }
+        public required string RoleId { get; set; }
+        public required string TypeName { get; set; }
         public IDictionary<string, object> Configuration { get; set; } = new Dictionary<string, object>();
     }
 }

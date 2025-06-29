@@ -30,7 +30,7 @@ namespace HybridBot
                 .Build();
 
             // Create host with dependency injection
-            var host = CreateHostBuilder(args, configuration).Build();
+            var host = CreateHostBuilder(args ?? Array.Empty<string>(), configuration).Build();
             
             // Get services and run demo
             using var scope = host.Services.CreateScope();
@@ -104,12 +104,18 @@ namespace HybridBot
                     services.AddSingleton<BotOrchestrator>();
                     services.AddSingleton<SemanticOrchestrator>();
 
-                    // Add roles
+                    // Add contextual awareness services
+                    services.AddSingleton<LayeredContextFactory>();
+
+                    // Add traditional and contextual roles
                     services.AddTransient<SummarizerRole>();
                     services.AddTransient<ResponderRole>();
                     services.AddTransient<TestRole>();
                     services.AddTransient<SemanticKernelRole>();
                     services.AddTransient<SkynetLiteRole>();
+                    
+                    // Add new contextual roles
+                    services.AddTransient<AdaptiveGamingRole>();
 
                     // Add demo service
                     services.AddTransient<BotDemo>();
@@ -125,17 +131,20 @@ namespace HybridBot
         private readonly RoleRegistry _roleRegistry;
         private readonly ILogger<BotDemo> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly LayeredContextFactory _contextFactory;
 
         public BotDemo(
             BotOrchestrator orchestrator,
             RoleRegistry roleRegistry,
             ILogger<BotDemo> logger,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            LayeredContextFactory contextFactory)
         {
             _orchestrator = orchestrator;
             _roleRegistry = roleRegistry;
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _contextFactory = contextFactory;
         }
 
         public async Task RunAsync()
@@ -169,14 +178,31 @@ namespace HybridBot
 
             // Load roles from configuration
             var configPath = Path.Combine(Directory.GetCurrentDirectory(), "Config", "role_registry.json");
+            var rolesLoadedFromConfig = false;
+            
             if (File.Exists(configPath))
             {
                 await _roleRegistry.LoadFromConfigFileAsync(configPath);
-                Console.WriteLine($"✅ Loaded roles from configuration file");
+                var configLoadedRoles = _roleRegistry.GetAllRoles().ToList();
+                rolesLoadedFromConfig = configLoadedRoles.Count > 0;
+                
+                if (rolesLoadedFromConfig)
+                {
+                    Console.WriteLine($"✅ Loaded {configLoadedRoles.Count} roles from configuration file");
+                }
+                else
+                {
+                    Console.WriteLine("⚠️ Configuration file exists but no roles were loaded");
+                }
             }
             else
             {
-                // Manual registration for demo
+                Console.WriteLine("⚠️ Configuration file not found, will use manual registration");
+            }
+
+            // If no roles were loaded from config, do manual registration
+            if (!rolesLoadedFromConfig)
+            {
                 await RegisterRolesManuallyAsync();
             }
 
@@ -214,6 +240,64 @@ namespace HybridBot
             };
             await _roleRegistry.RegisterRoleAsync(responder, responderConfig);
 
+            // Register Test Role
+            var testRole = _serviceProvider.GetRequiredService<TestRole>();
+            var testConfig = new Dictionary<string, object>
+            {
+                ["test_mode"] = "demo",
+                ["response_delay"] = 0,
+                ["echo_input"] = true
+            };
+            await _roleRegistry.RegisterRoleAsync(testRole, testConfig);
+
+            // Register Semantic Kernel Role (if available)
+            try
+            {
+                var semanticRole = _serviceProvider.GetRequiredService<SemanticKernelRole>();
+                var semanticConfig = new Dictionary<string, object>
+                {
+                    ["ai_model"] = "gpt-3.5-turbo",
+                    ["max_tokens"] = 1000,
+                    ["temperature"] = 0.7,
+                    ["enable_planning"] = false
+                };
+                await _roleRegistry.RegisterRoleAsync(semanticRole, semanticConfig);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Semantic Kernel role not available: {ex.Message}");
+            }
+
+            // Register Skynet-Lite Role (if available)
+            try
+            {
+                var skynetRole = _serviceProvider.GetRequiredService<SkynetLiteRole>();
+                var skynetConfig = new Dictionary<string, object>
+                {
+                    ["model_id"] = "skynet-lite-v1",
+                    ["max_tokens"] = 2000,
+                    ["temperature"] = 0.7,
+                    ["response_style"] = "conversational"
+                };
+                await _roleRegistry.RegisterRoleAsync(skynetRole, skynetConfig);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Skynet-Lite role not available: {ex.Message}");
+            }
+
+            // Register Adaptive Gaming Role
+            var gamingRole = _serviceProvider.GetRequiredService<AdaptiveGamingRole>();
+            var gamingConfig = new Dictionary<string, object>
+            {
+                ["game_mode"] = "adaptive",
+                ["difficulty_scaling"] = true,
+                ["coaching_style"] = "supportive",
+                ["strategy_focus"] = new[] { "survival", "exploration", "skill_building" },
+                ["environmental_awareness"] = true
+            };
+            await _roleRegistry.RegisterRoleAsync(gamingRole, gamingConfig);
+
             Console.WriteLine("✅ Manually registered roles");
         }
 
@@ -224,7 +308,9 @@ namespace HybridBot
                 CreateGreetingScenario(),
                 CreateSummarizationScenario(),
                 CreateHelpRequestScenario(),
-                CreateComplexConversationScenario()
+                CreateComplexConversationScenario(),
+                CreateGamingContextScenario(),
+                CreateEnvironmentalAdaptationScenario()
             };
 
             Console.WriteLine("🎭 Running Demo Scenarios...");
@@ -399,6 +485,89 @@ namespace HybridBot
             };
         }
 
+        private DemoScenario CreateGamingContextScenario()
+        {
+            return new DemoScenario
+            {
+                Name = "Gaming Context Adaptation",
+                Input = "I'm stuck in a stormy mountain dungeon with low health and facing a boss enemy. What should I do?",
+                Context = new BotContext
+                {
+                    RequestId = Guid.NewGuid().ToString(),
+                    ConversationId = "gaming-demo-1",
+                    UserId = "gamer-user",
+                    Input = "I'm stuck in a stormy mountain dungeon with low health and facing a boss enemy. What should I do?",
+                    State = new Dictionary<string, object>
+                    {
+                        ["game_environment"] = "dungeon",
+                        ["environment"] = new Dictionary<string, object>
+                        {
+                            ["terrain"] = "mountain",
+                            ["weather"] = "stormy",
+                            ["location_type"] = "boss_room"
+                        },
+                        ["threats"] = new Dictionary<string, double>
+                        {
+                            ["boss"] = 0.9,
+                            ["weather"] = 0.7
+                        },
+                        ["available_resources"] = new List<string> { "health_potion", "mana_crystal" },
+                        ["recent_actions"] = new List<string> { "attack", "defend", "retreat", "attack", "defend" },
+                        ["engagement_level"] = 0.4, // Low due to difficulty
+                        ["player_skill_level"] = 0.6,
+                        ["bot_goals"] = new List<string> { "survival", "strategy_guidance" }
+                    }
+                },
+                Config = new OrchestrationConfig
+                {
+                    ExecutionMode = ExecutionMode.FirstMatch,
+                    RequiredTags = new List<string> { "gaming", "adaptive" }
+                }
+            };
+        }
+
+        private DemoScenario CreateEnvironmentalAdaptationScenario()
+        {
+            return new DemoScenario
+            {
+                Name = "Environmental Context Adaptation",
+                Input = "Help me plan a strategy for exploring this new foggy forest area I discovered.",
+                Context = new BotContext
+                {
+                    RequestId = Guid.NewGuid().ToString(),
+                    ConversationId = "exploration-demo-1",
+                    UserId = "explorer-user",
+                    Input = "Help me plan a strategy for exploring this new foggy forest area I discovered.",
+                    State = new Dictionary<string, object>
+                    {
+                        ["environment"] = new Dictionary<string, object>
+                        {
+                            ["terrain"] = "forest",
+                            ["weather"] = "foggy",
+                            ["time_of_day"] = "dusk"
+                        },
+                        ["threats"] = new Dictionary<string, double>
+                        {
+                            ["visibility"] = 0.6,
+                            ["unknown_creatures"] = 0.4
+                        },
+                        ["available_resources"] = new List<string> { "torch", "rope", "food_supplies", "compass" },
+                        ["recent_actions"] = new List<string> { "explore", "search", "investigate", "observe" },
+                        ["engagement_level"] = 0.8, // High due to discovery excitement
+                        ["user_relationship"] = "familiar",
+                        ["conversation_sentiment"] = 0.3, // Slightly positive
+                        ["bot_goals"] = new List<string> { "exploration_guidance", "safety_planning" },
+                        ["interaction_count"] = 15
+                    }
+                },
+                Config = new OrchestrationConfig
+                {
+                    ExecutionMode = ExecutionMode.FirstMatch,
+                    RequiredTags = new List<string> { "contextual", "adaptive" }
+                }
+            };
+        }
+
         private async Task CleanupAsync()
         {
             Console.WriteLine("🧹 Cleaning up...");
@@ -408,10 +577,10 @@ namespace HybridBot
 
         private class DemoScenario
         {
-            public string Name { get; set; }
-            public string Input { get; set; }
-            public BotContext Context { get; set; }
-            public OrchestrationConfig Config { get; set; }
+            public required string Name { get; set; }
+            public required string Input { get; set; }
+            public required BotContext Context { get; set; }
+            public required OrchestrationConfig Config { get; set; }
         }
     }
 }

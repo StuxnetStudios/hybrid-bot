@@ -1,5 +1,5 @@
 {
-  "roles": [
+  "Roles": [
     {
       "roleId": "summarizer",
       "typeName": "HybridBot.Roles.SummarizerRole",
@@ -31,6 +31,36 @@
         "tags": ["response", "conversation", "interaction", "dialogue"],
         "metadata": {
           "description": "Generates contextual responses to user inputs",
+          "author": "HybridBot Team",
+          "version": "1.0.0",
+          "last_updated": "2025-06-28"
+        }
+      }
+    },
+    {
+      "roleId": "test-role",
+      "typeName": "HybridBot.Roles.TestRole",
+      "configuration": {
+        "test_mode": "demo",
+        "response_delay": 0,
+        "echo_input": true,
+        "priority": 30,
+        "tags": ["test", "demo", "debugging"]
+      }
+    },
+    {
+      "roleId": "adaptive-gaming",
+      "typeName": "HybridBot.Roles.AdaptiveGamingRole",
+      "configuration": {
+        "game_mode": "adaptive",
+        "difficulty_scaling": true,
+        "coaching_style": "supportive",
+        "strategy_focus": ["survival", "exploration", "skill_building"],
+        "environmental_awareness": true,
+        "priority": 85,
+        "tags": ["gaming", "adaptive", "contextual", "strategic", "coaching"],
+        "metadata": {
+          "description": "Contextually-aware gaming assistant with adaptive strategies",
           "author": "HybridBot Team",
           "version": "1.0.0",
           "last_updated": "2025-06-28"
