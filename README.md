@@ -1,6 +1,15 @@
-# HybridBot - Semantic Kernel AI Agent System
+# StuxBot - Semantic Kernel AI Agent System
 
 A modern AI agent system built on Microsoft Semantic Kernel with composition-based architecture, privacy-first design, and flexible capability management. Integrates with Skynet-lite for local AI inference while maintaining full offline capability.
+
+StuxBot is powered by the robust HybridBot architecture - a clean separation between the user-facing product experience and the underlying technical framework.
+
+## 🏷️ Naming Convention
+
+**StuxBot** = User-facing product name (what users see and interact with)  
+**HybridBot** = Technical architecture framework (namespaces, project files, internal structure)
+
+This separation allows the product to evolve its branding independently from the stable technical architecture underneath.
 
 ## 🚀 Key Features
 
@@ -25,9 +34,9 @@ A modern AI agent system built on Microsoft Semantic Kernel with composition-bas
 ## 📁 Project Structure
 
 ```
-HybridBot/
+StuxBot/ (HybridBot Architecture)
 ├── Core/                              # Core framework
-│   ├── HybridBot.cs                   # Main agent class (composition)
+│   ├── StuxBot.cs                     # Main agent class (composition)
 │   ├── IRoleCapability.cs             # Capability interface
 │   ├── BaseRoleCapability.cs          # Abstract capability base
 │   ├── SkynetLiteConnector.cs         # Skynet-lite integration
@@ -56,7 +65,7 @@ HybridBot/
 1. **Clone and Build**:
    ```bash
    git clone <repository-url>
-   cd HybridBot
+   cd StuxBot
    dotnet restore
    dotnet build
    ```
@@ -75,7 +84,7 @@ HybridBot/
 ### First Run Experience
 
 The application will:
-1. **Initialize** Semantic Kernel with Skynet-lite connector
+1. **Initialize** StuxBot with Skynet-lite connector
 2. **Register** available capabilities (Summarizer, Responder)
 3. **Run** demonstration scenarios automatically
 4. **Enter** interactive mode for live testing
@@ -114,8 +123,8 @@ The application will:
 ### Composition-Based Design
 
 ```csharp
-// Main agent composes capabilities, doesn't inherit
-public class HybridBotAgent
+// StuxBot agent composes capabilities, doesn't inherit from them
+public class StuxBotAgent : Agent  // Inherits from Semantic Kernel Agent
 {
     private readonly Dictionary<string, IRoleCapability> _capabilities;
     
@@ -219,7 +228,7 @@ var context = new BotContext
     Input = "Hello, can you help me summarize this document?"
 };
 
-var response = await hybridBot.ProcessAsync(context);
+var response = await stuxBot.ProcessAsync(context);
 Console.WriteLine($"Response: {response.Content}");
 Console.WriteLine($"Handled by: {response.Source}");
 ```
@@ -270,7 +279,7 @@ export DOTNET_ENVIRONMENT=Development
 dotnet run
 
 # View logs
-tail -f logs/hybridbot-*.log
+tail -f logs/stuxbot-*.log
 ```
 
 ### Unit Testing
@@ -326,14 +335,14 @@ ENTRYPOINT ["dotnet", "HybridBot.dll"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hybridbot
+  name: stuxbot
 spec:
   replicas: 1
   template:
     spec:
       containers:
-      - name: hybridbot
-        image: hybridbot:latest
+      - name: stuxbot
+        image: stuxbot:latest
         env:
         - name: SkynetLite__MockMode
           value: "false"
@@ -353,7 +362,8 @@ spec:
   "Logging": {
     "LogLevel": {
       "HybridBot": "Information",
-      "HybridBot.Capabilities": "Debug"
+      "HybridBot.Capabilities": "Debug",
+      "HybridBot.Core.StuxBotAgent": "Information"
     }
   }
 }

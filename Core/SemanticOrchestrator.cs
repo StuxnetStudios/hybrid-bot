@@ -1,4 +1,4 @@
- using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -625,7 +625,7 @@ namespace HybridBot.Core
                 User Context: "{context.Input}"
                 Environmental Context: {layeredContext.Environment.Conditions.Count} conditions
                 Player Engagement: {layeredContext.PlayerActions.EngagementLevel}
-                Contextual Adaptations: {response.Metadata.GetValueOrDefault("contextual_adaptations", "None")}
+                Contextual Adaptations: {(response.Metadata.ContainsKey("contextual_adaptations") ? response.Metadata["contextual_adaptations"] : "None")}
                 
                 Enhancement goals:
                 - Leverage contextual insights for more relevant responses
@@ -644,6 +644,97 @@ namespace HybridBot.Core
             response.Metadata["enhancement_timestamp"] = DateTime.UtcNow;
             
             return response;
+        }
+        
+        /// <summary>
+        /// Parse semantic kernel result into LayeredContext
+        /// </summary>
+        private LayeredContext ParseLayeredContextFromSemanticResult(string result, BotContext context)
+        {
+            try
+            {
+                // Create a basic LayeredContext from the semantic result
+                // In a more sophisticated implementation, this would parse structured JSON/XML
+                var layeredContext = new LayeredContext { BaseContext = context };
+                
+                // Parse simple key-value pairs or create default context
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    return layeredContext;
+                }
+                
+                // Simple parsing - in production this would be more sophisticated
+                var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    if (line.Contains(":"))
+                    {
+                        var parts = line.Split(':', 2);
+                        if (parts.Length == 2)
+                        {
+                            layeredContext.Environment.Conditions[parts[0].Trim()] = parts[1].Trim();
+                        }
+                    }
+                }
+                
+                return layeredContext;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning($"Failed to parse layered context: {ex.Message}");
+                return new LayeredContext { BaseContext = context };
+            }
+        }
+        
+        /// <summary>
+        /// Parse semantic kernel result into ContextAnalysis
+        /// </summary>
+        private ContextAnalysis ParseContextAnalysis(string result)
+        {
+            try
+            {
+                var analysis = new ContextAnalysis();
+                
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    return analysis;
+                }
+                
+                // Simple parsing - in production this would parse structured JSON
+                var lines = result.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var line in lines)
+                {
+                    var lower = line.ToLowerInvariant();
+                    if (lower.Contains("complexity") && lower.Contains("score"))
+                    {
+                        // Try to extract a complexity score
+                        var parts = line.Split(':', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 1 && double.TryParse(parts[1].Trim(), out var score))
+                        {
+                            analysis.ComplexityScore = Math.Min(1.0, Math.Max(0.0, score));
+                        }
+                    }
+                    else if (lower.Contains("contextual") || lower.Contains("prefer"))
+                    {
+                        analysis.PreferContextualRoles = lower.Contains("yes") || lower.Contains("true");
+                    }
+                    else if (lower.Contains("reasoning"))
+                    {
+                        var parts = line.Split(':', 2);
+                        if (parts.Length > 1)
+                        {
+                            analysis.Reasoning = parts[1].Trim();
+                        }
+                    }
+                }
+                
+                return analysis;
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning($"Failed to parse context analysis: {ex.Message}");
+                return new ContextAnalysis();
+            }
         }
     }
     

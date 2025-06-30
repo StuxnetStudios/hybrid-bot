@@ -5,46 +5,48 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 
 namespace HybridBot.Core
 {
     /// <summary>
-    /// Main HybridBot class that uses Semantic Kernel functionality.
+    /// Main StuxBot class that inherits from Semantic Kernel Agent.
     /// Composes multiple role capabilities to provide a unified AI agent experience.
     /// This is the single agent that orchestrates all role-based behaviors.
-    /// Uses composition instead of inheritance for cleaner architecture.
+    /// Inherits from SK Agent for full framework integration.
     /// </summary>
-    public class HybridBotAgent
+    public class StuxBotAgent : Agent
     {
-        private readonly ILogger<HybridBotAgent> _logger;
+        private readonly ILogger<StuxBotAgent> _logger;
         private readonly Dictionary<string, IRoleCapability> _capabilities;
         private readonly StateManager _stateManager;
         private readonly SkynetLiteConnector _skynetConnector;
         private readonly Kernel _kernel;
         
         // Agent configuration
-        public string Name => "HybridBot";
-        public string Description => "AI agent with multiple specialized role capabilities";
-        public string Id { get; }
+        // Agent configuration - override inherited properties
+        public new string Name => "StuxBot";
+        public new string Description => "AI agent with multiple specialized role capabilities";
         
         // Capability management
         public IReadOnlyDictionary<string, IRoleCapability> Capabilities => _capabilities;
         
-        public HybridBotAgent(
-            ILogger<HybridBotAgent> logger,
+        public StuxBotAgent(
+            ILogger<StuxBotAgent> logger,
             Kernel kernel,
             StateManager stateManager,
             SkynetLiteConnector skynetConnector,
-            IEnumerable<IRoleCapability>? capabilities = null)
+            IEnumerable<IRoleCapability>? capabilities = null) : base()
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
             _skynetConnector = skynetConnector ?? throw new ArgumentNullException(nameof(skynetConnector));
             _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
             
-            // Initialize with unique ID
-            Id = Guid.NewGuid().ToString();
+            // Initialize SK Agent properties
+            Kernel = kernel;
+            Instructions = "You are StuxBot, an advanced AI agent with multiple specialized capabilities.";
             
             // Initialize capabilities dictionary
             _capabilities = new Dictionary<string, IRoleCapability>();
@@ -58,7 +60,7 @@ namespace HybridBot.Core
                 }
             }
             
-            _logger.LogInformation($"HybridBot agent initialized with ID: {Id}");
+            _logger.LogInformation($"StuxBot agent initialized with ID: {Id}");
         }
         
         /// <summary>
@@ -196,7 +198,7 @@ namespace HybridBot.Core
             });
             
             await Task.WhenAll(initTasks);
-            _logger.LogInformation($"HybridBot initialization complete. {_capabilities.Count} capabilities ready.");
+            _logger.LogInformation($"StuxBot initialization complete. {_capabilities.Count} capabilities ready.");
         }
         
         /// <summary>
@@ -206,7 +208,7 @@ namespace HybridBot.Core
         {
             var instructions = new List<string>
             {
-                "You are HybridBot, an advanced AI agent with multiple specialized capabilities.",
+                "You are StuxBot, an advanced AI agent with multiple specialized capabilities.",
                 "You can handle various types of requests by leveraging different role-based capabilities.",
                 "",
                 "Your capabilities include:"
@@ -258,7 +260,110 @@ namespace HybridBot.Core
             await Task.WhenAll(disposeTasks);
             
             _capabilities.Clear();
-            _logger.LogInformation("HybridBot disposed successfully");
+            _logger.LogInformation("StuxBot disposed successfully");
         }
+
+        #region Agent Abstract Method Implementations
+
+        /// <summary>
+        /// Invoke the agent with a collection of chat messages
+        /// </summary>
+        public override async IAsyncEnumerable<AgentResponseItem<ChatMessageContent>> InvokeAsync(
+            ICollection<ChatMessageContent> history,
+            AgentThread? thread = null,
+            AgentInvokeOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            // Convert chat history to our BotContext format
+            var lastMessage = history.LastOrDefault()?.Content ?? "";
+            var context = new BotContext
+            {
+                Input = lastMessage,
+                RequestId = Guid.NewGuid().ToString(),
+                ConversationId = thread?.Id ?? Guid.NewGuid().ToString(),
+                UserId = "agent-user",
+                Timestamp = DateTime.UtcNow
+            };
+
+            BotResponse response;
+            try
+            {
+                // Process through our capability system
+                response = await ProcessMessageAsync(lastMessage, context);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in Agent InvokeAsync");
+                response = new BotResponse
+                {
+                    Content = "I encountered an error processing your request.",
+                    IsComplete = false
+                };
+            }
+
+            // Return as SK Agent response
+            var chatMessage = new ChatMessageContent(
+                AuthorRole.Assistant,
+                response.Content,
+                modelId: "hybrid-bot"
+            );
+
+            yield return new AgentResponseItem<ChatMessageContent>(chatMessage, thread!);
+        }
+
+        /// <summary>
+        /// Invoke the agent with streaming responses
+        /// </summary>
+        public override async IAsyncEnumerable<AgentResponseItem<StreamingChatMessageContent>> InvokeStreamingAsync(
+            ICollection<ChatMessageContent> history,
+            AgentThread? thread = null,
+            AgentInvokeOptions? options = null,
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            // For now, delegate to non-streaming and convert
+            await foreach (var item in InvokeAsync(history, thread, options, cancellationToken))
+            {
+                var streamingContent = new StreamingChatMessageContent(
+                    AuthorRole.Assistant,
+                    item.Message.Content,
+                    modelId: item.Message.ModelId
+                );
+                yield return new AgentResponseItem<StreamingChatMessageContent>(streamingContent, thread!);
+            }
+        }
+
+        /// <summary>
+        /// Create a new agent channel
+        /// </summary>
+#pragma warning disable SKEXP0110
+        protected override Task<AgentChannel> CreateChannelAsync(CancellationToken cancellationToken = default)
+#pragma warning restore SKEXP0110
+        {
+            // Return a default channel implementation
+            // This might need to be customized based on your specific needs
+            throw new NotImplementedException("Custom channel creation not yet implemented. Use AgentGroupChat or similar.");
+        }
+
+        /// <summary>
+        /// Get the keys for agent channels
+        /// </summary>
+        protected override IEnumerable<string> GetChannelKeys()
+        {
+            // Return channel keys if any
+            return Enumerable.Empty<string>();
+        }
+
+        /// <summary>
+        /// Restore an agent channel from a key
+        /// </summary>
+#pragma warning disable SKEXP0110
+        protected override Task<AgentChannel> RestoreChannelAsync(string channelKey, CancellationToken cancellationToken = default)
+#pragma warning restore SKEXP0110
+        {
+            // Restore channel from key
+            throw new NotImplementedException("Channel restoration not yet implemented.");
+        }
+
+        #endregion
     }
 }

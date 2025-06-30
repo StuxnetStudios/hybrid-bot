@@ -109,10 +109,10 @@ namespace HybridBot
                     services.AddTransient<SummarizerCapability>();
                     services.AddTransient<ResponderCapability>();
 
-                    // Add the main HybridBot (composition-based agent)
-                    services.AddSingleton<HybridBotAgent>(serviceProvider =>
+                    // Add the main StuxBot (composition-based agent)
+                    services.AddSingleton<StuxBotAgent>(serviceProvider =>
                     {
-                        var logger = serviceProvider.GetRequiredService<ILogger<HybridBotAgent>>();
+                        var logger = serviceProvider.GetRequiredService<ILogger<StuxBotAgent>>();
                         var kernel = serviceProvider.GetRequiredService<Kernel>();
                         var stateManager = serviceProvider.GetRequiredService<StateManager>();
                         var skynetConnector = serviceProvider.GetRequiredService<SkynetLiteConnector>();
@@ -124,7 +124,7 @@ namespace HybridBot
                             serviceProvider.GetRequiredService<ResponderCapability>()
                         };
                         
-                        return new HybridBotAgent(logger, kernel, stateManager, skynetConnector, capabilities);
+                        return new StuxBotAgent(logger, kernel, stateManager, skynetConnector, capabilities);
                     });
 
                     // Add demo service
@@ -133,16 +133,16 @@ namespace HybridBot
     }
 
     /// <summary>
-    /// Demonstration class showing the new HybridBot system in action
+    /// Demonstration class showing the new StuxBot system in action
     /// </summary>
     public class BotDemo
     {
-        private readonly HybridBotAgent _hybridBot;
+        private readonly StuxBotAgent _stuxBot;
         private readonly ILogger<BotDemo> _logger;
 
-        public BotDemo(HybridBotAgent hybridBot, ILogger<BotDemo> logger)
+        public BotDemo(StuxBotAgent stuxBot, ILogger<BotDemo> logger)
         {
-            _hybridBot = hybridBot;
+            _stuxBot = stuxBot;
             _logger = logger;
         }
 
@@ -172,14 +172,14 @@ namespace HybridBot
 
         private async Task InitializeSystemAsync()
         {
-            Console.WriteLine("🔧 Initializing HybridBot...");
+            Console.WriteLine("🔧 Initializing StuxBot...");
             
             // Initialize the bot and its capabilities
-            await _hybridBot.InitializeAsync();
+            await _stuxBot.InitializeAsync();
             
             // Display capabilities
-            Console.WriteLine($"✅ HybridBot initialized with {_hybridBot.Capabilities.Count} capabilities:");
-            foreach (var capability in _hybridBot.Capabilities.Values)
+            Console.WriteLine($"✅ StuxBot initialized with {_stuxBot.Capabilities.Count} capabilities:");
+            foreach (var capability in _stuxBot.Capabilities.Values)
             {
                 Console.WriteLine($"   • {capability.Name} ({capability.CapabilityId}) - Priority: {capability.Priority}");
                 Console.WriteLine($"     Tags: {string.Join(", ", capability.Tags)}");
@@ -232,7 +232,7 @@ namespace HybridBot
                     UserId = "demo-user"
                 };
 
-                var response = await _hybridBot.ProcessMessageAsync(scenario.Message, context);
+                var response = await _stuxBot.ProcessMessageAsync(scenario.Message, context);
 
                 Console.WriteLine("🤖 Bot Response:");
                 Console.WriteLine(response.Content);
@@ -279,7 +279,7 @@ namespace HybridBot
                 if (input.ToLower() == "capabilities")
                 {
                     Console.WriteLine("Available Capabilities:");
-                    foreach (var capability in _hybridBot.Capabilities.Values)
+                    foreach (var capability in _stuxBot.Capabilities.Values)
                     {
                         Console.WriteLine($"• {capability.Name}: {capability.GetInstructions()}");
                     }
@@ -298,7 +298,7 @@ namespace HybridBot
 
                 try
                 {
-                    var response = await _hybridBot.ProcessMessageAsync(input, context);
+                    var response = await _stuxBot.ProcessMessageAsync(input, context);
                     Console.WriteLine($"Bot: {response.Content}");
 
                     if (!response.IsComplete && response.Metadata.ContainsKey("error"))
