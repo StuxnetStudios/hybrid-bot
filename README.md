@@ -1,71 +1,57 @@
-# Hybrid Bot Orchestration System
+# HybridBot - Semantic Kernel AI Agent System
 
-A sophisticated hybrid bot design that combines class-based bot logic with tag-annotated roles for maximum flexibility, clarity, and runtime interoperability. This system provides structured code organization while enabling dynamic role composition and execution.
-
-## 🏗️ Architecture Overview
-
-### Core Concepts
-
-- **Hybrid Design**: Combines structured OOP with flexible metadata-driven configuration
-- **Tag-Based Organization**: Roles are categorized and filtered using tag annotations
-- **Runtime Interoperability**: Dynamic role loading and execution without restart
-- **State Management**: Persistent conversation state with cleanup capabilities
-- **Orchestration Patterns**: Multiple execution modes (FirstMatch, Sequential, Parallel, Pipeline)
-
-### Project Structure
-
-```
-HybridBot/
-├── Core/                           # Core framework components
-│   ├── IBotRole.cs                 # Primary role interface
-│   ├── BaseBotRole.cs              # Abstract base implementation
-│   ├── RoleRegistry.cs             # Role management and discovery
-│   ├── BotOrchestrator.cs          # Execution orchestration
-│   └── StateManager.cs             # Persistent state management
-├── Roles/                          # Concrete role implementations
-│   ├── SummarizerRole.cs           # Content summarization
-│   └── ResponderRole.cs            # Contextual responses
-├── Config/                         # Configuration files
-│   ├── role_registry.json          # Role registration config
-│   └── summarizer_state.yaml       # Role-specific state config
-├── Program.cs                      # Application entry point
-├── appsettings.json               # Application configuration
-└── README.md                      # This file
-```
+A modern AI agent system built on Microsoft Semantic Kernel with composition-based architecture, privacy-first design, and flexible capability management. Integrates with Skynet-lite for local AI inference while maintaining full offline capability.
 
 ## 🚀 Key Features
 
-### 1. **Tag-Annotated Role System**
-- Roles are organized using semantic tags (e.g., "summarization", "response", "analysis")
-- Runtime filtering and selection based on tags
-- Metadata-driven configuration through frontmatter
+### 🔒 **Privacy & Security First**
+- **Offline by Default**: Mock mode ensures no data leaves your system
+- **No API Keys Required**: Operates completely without external authentication
+- **Local Processing**: Can run entirely air-gapped for sensitive environments
+- **Explicit Opt-in**: External connections only when deliberately configured
 
-### 2. **Multiple Execution Modes**
-- **FirstMatch**: Execute the first capable role
-- **Sequential**: Execute all capable roles in order
-- **Parallel**: Execute multiple roles concurrently
-- **Pipeline**: Chain roles, passing output between them
+### 🏗️ **Modern Architecture**
+- **Composition over Inheritance**: Clean capability-based design
+- **Microsoft Semantic Kernel**: Industry-standard AI orchestration framework
+- **Dependency Injection**: Full DI container support with .NET 8
+- **Async/Await**: Modern asynchronous processing throughout
 
-### 3. **State Management**
-- Persistent conversation state across sessions
-- Automatic cleanup of old conversations
-- In-memory caching with file-based persistence
-- State versioning and migration support
+### 🎯 **Flexible Capabilities**
+- **Modular Design**: Add/remove capabilities without code changes
+- **Tag-based Routing**: Smart content-based capability selection
+- **State Management**: Persistent conversation state with cleanup
+- **Mock Mode**: Contextual responses for development and testing
 
-### 4. **Flexible Configuration**
-- JSON configuration for role registry
-- YAML frontmatter for role-specific settings
-- Environment variable support
-- Runtime reconfiguration capabilities
+## 📁 Project Structure
 
-## 🛠️ Getting Started
+```
+HybridBot/
+├── Core/                              # Core framework
+│   ├── HybridBot.cs                   # Main agent class (composition)
+│   ├── IRoleCapability.cs             # Capability interface
+│   ├── BaseRoleCapability.cs          # Abstract capability base
+│   ├── SkynetLiteConnector.cs         # Skynet-lite integration
+│   └── StateManager.cs                # Conversation state management
+├── Capabilities/                      # Concrete capabilities
+│   ├── SummarizerCapability.cs        # Content summarization
+│   └── ResponderCapability.cs         # General conversation
+├── Config/                            # Configuration files
+│   ├── role_registry.json             # Capability registration
+│   └── summarizer_state.yaml          # Capability-specific state
+├── Roles/                             # Legacy role classes (deprecated)
+├── Program.cs                         # Application entry point
+├── appsettings.json                   # Application configuration
+└── HybridBot.csproj                   # Project file
+```
+
+## 🛠️ Quick Start
 
 ### Prerequisites
+- **.NET 8.0 SDK** or later
+- **Visual Studio 2022** / **VS Code** with C# extension
+- **Optional**: Local Skynet-lite server for non-mock responses
 
-- .NET 8.0 or later
-- Visual Studio 2022 or VS Code with C# extension
-
-### Building and Running
+### Installation & Running
 
 1. **Clone and Build**:
    ```bash
@@ -75,173 +61,250 @@ HybridBot/
    dotnet build
    ```
 
-2. **Run the Demo**:
+2. **Run with Mock Mode** (Default - No external dependencies):
    ```bash
    dotnet run
    ```
 
-3. **Run Specific Scenarios**:
+3. **Run with Local Skynet-lite** (Requires server at localhost:8080):
    ```bash
-   dotnet run -- --scenario greeting
-   dotnet run -- --scenario summarization
+   # Edit appsettings.json: "MockMode": false
+   dotnet run
    ```
 
-### Configuration
+### First Run Experience
 
-#### Role Registry (`Config/role_registry.json`)
-```json
-{
-  "roles": [
-    {
-      "roleId": "summarizer",
-      "typeName": "HybridBot.Roles.SummarizerRole",
-      "configuration": {
-        "summary_length": "medium",
-        "include_sentiment": true,
-        "output_format": "structured"
-      }
-    }
-  ]
-}
-```
+The application will:
+1. **Initialize** Semantic Kernel with Skynet-lite connector
+2. **Register** available capabilities (Summarizer, Responder)
+3. **Run** demonstration scenarios automatically
+4. **Enter** interactive mode for live testing
 
-#### Role State Config (`Config/summarizer_state.yaml`)
-```yaml
-role_id: summarizer
-state_config:
-  persistence_enabled: true
-  auto_cleanup: true
-  cleanup_age_days: 30
+## ⚙️ Configuration
 
-behavior:
-  auto_summarize_threshold: 500
-  cache_enabled: true
-```
-
-## 📝 Creating Custom Roles
-
-### 1. Implement the Base Class
-
-```csharp
-public class MyCustomRole : BaseBotRole
-{
-    public override string RoleId => "my-custom-role";
-    public override string Name => "My Custom Role";
-    
-    public MyCustomRole(ILogger<MyCustomRole> logger) : base(logger)
-    {
-        Tags = new List<string> { "custom", "specialized" };
-        Priority = 50;
-    }
-    
-    protected override async Task<BotResponse> OnExecuteAsync(BotContext context)
-    {
-        // Your role logic here
-        return new BotResponse
-        {
-            Content = "Custom response",
-            IsComplete = true
-        };
-    }
-    
-    public override bool CanHandle(BotContext context)
-    {
-        // Define when this role should handle requests
-        return context.Input.Contains("custom");
-    }
-}
-```
-
-### 2. Register in DI Container
-
-```csharp
-services.AddTransient<MyCustomRole>();
-```
-
-### 3. Add to Role Registry Config
+### Core Configuration (`appsettings.json`)
 
 ```json
 {
-  "roleId": "my-custom-role",
-  "typeName": "HybridBot.Roles.MyCustomRole",
-  "configuration": {
-    "my_setting": "value"
+  "SkynetLite": {
+    "BaseUrl": "http://localhost:8080",
+    "ApiKey": "",                    // No API key required
+    "MockMode": true,                // Privacy-first: offline by default
+    "MaxTokens": 2000,
+    "Temperature": 0.7
+  },
+  "HybridBot": {
+    "StateDirectory": "./State",
+    "MaxConcurrentRoles": 5,
+    "EnableStatePersistence": true
   }
 }
 ```
 
-## 🎯 Usage Examples
+### Privacy Modes
+
+| Mode | Description | Data Transmission | Use Case |
+|------|-------------|-------------------|----------|
+| **Mock** | Contextual offline responses | None | Development, Privacy-sensitive |
+| **Local** | Connect to local Skynet-lite | Local only | Local AI inference |
+| **Remote** | External API (future) | External | Production with API |
+
+## 🎯 Architecture Overview
+
+### Composition-Based Design
+
+```csharp
+// Main agent composes capabilities, doesn't inherit
+public class HybridBotAgent
+{
+    private readonly Dictionary<string, IRoleCapability> _capabilities;
+    
+    // Intelligently routes to appropriate capability
+    public async Task<BotResponse> ProcessAsync(BotContext context)
+    {
+        var capability = SelectBestCapability(context);
+        return await capability.ExecuteAsync(context);
+    }
+}
+```
+
+### Capability Interface
+
+```csharp
+public interface IRoleCapability
+{
+    string CapabilityId { get; }
+    string Name { get; }
+    IReadOnlyList<string> Tags { get; }
+    int Priority { get; }
+    
+    Task<bool> CanHandleAsync(BotContext context);
+    Task<BotResponse> ExecuteAsync(BotContext context);
+}
+```
+
+### Smart Routing
+
+The system automatically selects capabilities based on:
+- **Content Analysis**: Keywords and patterns in user input
+- **Tag Matching**: Capability tags vs. required functionality
+- **Priority Levels**: Higher priority capabilities get preference
+- **Context History**: Previous conversation context
+
+## 🔧 Creating Custom Capabilities
+
+### 1. Implement IRoleCapability
+
+```csharp
+public class MyCustomCapability : BaseRoleCapability
+{
+    public override string CapabilityId => "custom-processor";
+    public override string Name => "Custom Processor";
+    protected override List<string> CapabilityTags => new() { "custom", "processing" };
+    protected override int CapabilityPriority => 60;
+
+    public override async Task<bool> CanHandleAsync(BotContext context)
+    {
+        return context.Input.Contains("custom", StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override async Task<BotResponse> ExecuteInternalAsync(BotContext context)
+    {
+        // Your custom logic here
+        return new BotResponse
+        {
+            Content = "Custom processing complete!",
+            IsComplete = true,
+            Source = CapabilityId
+        };
+    }
+}
+```
+
+### 2. Register in Program.cs
+
+```csharp
+// Add to dependency injection
+services.AddTransient<MyCustomCapability>();
+
+// Include in capability list
+var capabilities = new List<IRoleCapability>
+{
+    serviceProvider.GetRequiredService<SummarizerCapability>(),
+    serviceProvider.GetRequiredService<ResponderCapability>(),
+    serviceProvider.GetRequiredService<MyCustomCapability>()  // Add here
+};
+```
+
+### 3. Configure (Optional)
+
+Create `Config/custom_capability_state.yaml`:
+```yaml
+role_id: custom-processor
+state_version: "1.0.0"
+behavior:
+  processing_mode: "advanced"
+  cache_enabled: true
+```
+
+## 🔍 Usage Examples
 
 ### Basic Conversation
 ```csharp
 var context = new BotContext
 {
     RequestId = Guid.NewGuid().ToString(),
-    ConversationId = "user-123",
-    Input = "Hello, can you help me?"
+    ConversationId = "user-session-123",
+    UserId = "user-456",
+    Input = "Hello, can you help me summarize this document?"
 };
 
-var response = await orchestrator.ProcessAsync(context);
-Console.WriteLine(response.Content);
+var response = await hybridBot.ProcessAsync(context);
+Console.WriteLine($"Response: {response.Content}");
+Console.WriteLine($"Handled by: {response.Source}");
 ```
 
-### Tag-Based Role Selection
-```csharp
-var config = new OrchestrationConfig
-{
-    ExecutionMode = ExecutionMode.FirstMatch,
-    RequiredTags = new List<string> { "summarization" }
-};
-
-var response = await orchestrator.ProcessAsync(context, config);
-```
-
-### Pipeline Execution
-```csharp
-var config = new OrchestrationConfig
-{
-    ExecutionMode = ExecutionMode.Pipeline,
-    SpecificRoles = new List<string> { "analyzer", "summarizer", "responder" }
-};
-
-var response = await orchestrator.ProcessAsync(context, config);
-```
-
-## 🔧 Advanced Configuration
-
-### Environment Variables
+### Interactive Mode Commands
 ```bash
-export HYBRIDBOT__StateDirectory="/custom/state/path"
-export HYBRIDBOT__MaxConcurrentRoles="10"
-export HYBRIDBOT__EnableStatePersistence="true"
+# Start interactive mode
+dotnet run
+
+# Available commands in interactive mode:
+You: hello                          # General conversation
+You: summarize this text...         # Content summarization  
+You: capabilities                   # List available capabilities
+You: help                          # Get help information
+You: quit                          # Exit application
 ```
 
-### Logging Configuration
+## 📊 Built-in Capabilities
+
+### 1. **SummarizerCapability**
+- **Purpose**: Content summarization and analysis
+- **Tags**: `summarization`, `content`, `analysis`, `text-processing`
+- **Triggers**: "summarize", "summary", content analysis keywords
+- **Features**: Configurable length, format options, caching
+
+### 2. **ResponderCapability** 
+- **Purpose**: General conversation and assistance
+- **Tags**: `conversation`, `general`, `response`, `chat`
+- **Triggers**: Greetings, help requests, general questions
+- **Features**: Contextual responses, personality traits
+
+## 🧪 Testing & Development
+
+### Mock Responses
+The system provides intelligent mock responses for development:
+
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "HybridBot": "Debug",
-      "HybridBot.Core.BotOrchestrator": "Information"
-    }
-  }
+  "Input": "summarize this text...",
+  "MockResponse": "Here's a summary: The main points include key concepts..."
 }
 ```
 
-## 📊 Monitoring and Metrics
+### Debug Mode
+```bash
+# Enable detailed logging
+export DOTNET_ENVIRONMENT=Development
+dotnet run
 
-The system provides built-in metrics tracking:
-
-- **Role Execution Times**: Track performance of individual roles
-- **Success/Failure Rates**: Monitor role reliability
-- **State Usage**: Track conversation state growth
-- **Tag Utilization**: Analyze which tags are most commonly used
-
-Access metrics through the response metadata:
-```csharp
-var executionTime = response.Metadata["executionTime"];
-var roleUsed = response.Metadata["executedRole"];
+# View logs
+tail -f logs/hybridbot-*.log
 ```
+
+### Unit Testing
+```csharp
+[Test]
+public async Task SummarizerCapability_ShouldHandleSummarizationRequests()
+{
+    var capability = new SummarizerCapability(logger, config);
+    var context = new BotContext { Input = "Please summarize this content" };
+    
+    var canHandle = await capability.CanHandleAsync(context);
+    Assert.IsTrue(canHandle);
+}
+```
+
+## 🔐 Security & Privacy
+
+### Privacy-First Design
+- **Default Offline**: Mock mode prevents data transmission
+- **No Credentials**: No API keys or authentication required
+- **Local State**: All conversation data stored locally
+- **Explicit Consent**: Clear indication when data might be transmitted
+
+### Security Features
+- **Input Sanitization**: All user inputs are validated
+- **State Isolation**: User sessions are isolated
+- **Configurable Logging**: Control what gets logged
+- **Rate Limiting**: Built-in protection against abuse
+
+### Compliance Ready
+- **GDPR**: Data minimization and local processing
+- **HIPAA**: No PHI transmission in default mode
+- **SOX**: Audit trails and access controls
+- **Corporate**: Air-gapped operation capability
 
 ## 🚀 Deployment Options
 
@@ -250,60 +313,106 @@ var roleUsed = response.Metadata["executedRole"];
 dotnet run --environment Development
 ```
 
-### Docker Deployment
+### Docker Container
 ```dockerfile
 FROM mcr.microsoft.com/dotnet/runtime:8.0
-COPY . /app
 WORKDIR /app
+COPY . .
 ENTRYPOINT ["dotnet", "HybridBot.dll"]
 ```
 
 ### Azure Container Apps
-- Supports auto-scaling based on conversation volume
-- Persistent state using Azure Storage
-- Integrated logging with Application Insights
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hybridbot
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: hybridbot
+        image: hybridbot:latest
+        env:
+        - name: SkynetLite__MockMode
+          value: "false"
+```
 
-## 🔐 Security Considerations
+## 📈 Monitoring & Observability
 
-- **Input Validation**: All user inputs are sanitized
-- **State Isolation**: Conversation states are isolated by user/session
-- **Configuration Security**: Sensitive config stored in Key Vault
-- **Rate Limiting**: Built-in protection against abuse
+### Built-in Metrics
+- **Response Times**: Per-capability execution metrics
+- **Success Rates**: Capability success/failure tracking
+- **Usage Patterns**: Most used capabilities and features
+- **State Growth**: Conversation state size monitoring
+
+### Logging Integration
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "HybridBot": "Information",
+      "HybridBot.Capabilities": "Debug"
+    }
+  }
+}
+```
+
+### Health Checks
+```csharp
+// Built-in health check endpoint
+GET /health
+{
+  "status": "healthy",
+  "capabilities": ["summarizer", "responder"],
+  "mode": "mock"
+}
+```
+
+## 🛣️ Roadmap
+
+### Version 1.1
+- [ ] **Plugin System**: Dynamic capability loading
+- [ ] **REST API**: HTTP API for external integration
+- [ ] **Web UI**: Browser-based interface
+- [ ] **Metrics Dashboard**: Real-time monitoring
+
+### Version 1.2
+- [ ] **Multi-tenant**: Support multiple bot instances
+- [ ] **Workflow Engine**: Complex capability chaining
+- [ ] **Vector Search**: Semantic search capabilities
+- [ ] **Export/Import**: Configuration and state management
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-role`
-3. Implement your role following the established patterns
-4. Add comprehensive tests
-5. Submit a pull request
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-capability`
+3. **Implement** your capability following the established patterns
+4. **Add** comprehensive tests
+5. **Update** documentation
+6. **Submit** a pull request
 
-### Code Standards
-- Follow C# naming conventions
-- Include XML documentation for public APIs
-- Write unit tests for new roles
-- Update configuration examples
+### Development Guidelines
+- Follow **C# conventions** and **async/await** patterns
+- Include **XML documentation** for public APIs
+- Write **unit tests** for new capabilities
+- Update **configuration examples** in README
+- Maintain **privacy-first** principles
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🎯 Roadmap
-
-- [ ] **Azure AI Integration**: Direct integration with Azure Cognitive Services
-- [ ] **GraphQL API**: Expose orchestration through GraphQL
-- [ ] **Role Marketplace**: Community-driven role sharing
-- [ ] **Visual Designer**: GUI for creating role pipelines
-- [ ] **Performance Dashboard**: Real-time monitoring and analytics
-- [ ] **Multi-tenant Support**: Support for multiple bot instances
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-- **Documentation**: [Wiki Pages](../../wiki)
+- **Documentation**: [Wiki](../../wiki)
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussions**: [GitHub Discussions](../../discussions)
-- **Examples**: [Examples Repository](../examples)
+- **Security**: [Security Policy](SECURITY.md)
 
 ---
 
-**Built with ❤️ for the GitHub Copilot community**
+**🤖 Built with Microsoft Semantic Kernel • 🔒 Privacy-First Design • 🚀 Production Ready**
+
+> *"AI that respects your privacy while delivering powerful capabilities"*

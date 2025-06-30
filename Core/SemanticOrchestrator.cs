@@ -1,4 +1,4 @@
-using System;
+ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -41,7 +41,7 @@ namespace HybridBot.Core
         /// <summary>
         /// Process a request using Semantic Kernel for intelligent orchestration
         /// </summary>
-        public async Task<BotResponse> ProcessWithSemanticKernelAsync(BotContext context, SemanticOrchestrationConfig config = null)
+        public async Task<BotResponse> ProcessWithSemanticKernelAsync(BotContext context, SemanticOrchestrationConfig? config = null)
         {
             config ??= new SemanticOrchestrationConfig();
             
@@ -119,20 +119,35 @@ namespace HybridBot.Core
                 return new List<IBotRole>();
             }
             
+            // Enhanced role selection for contextual bots
+            var contextualRoles = availableRoles.OfType<IContextualBotRole>().ToList();
+            var traditionalRoles = availableRoles.Except(contextualRoles.Cast<IBotRole>()).ToList();
+            
             // Use Semantic Kernel to intelligently select and prioritize roles
             var roleSelectionPrompt = $"""
                 Given the intent analysis and available roles, select the optimal roles for this request:
                 
                 Intent Analysis: {analysis}
                 
-                Available Roles:
-                {string.Join("\n", availableRoles.Select(r => $"- {r.RoleId}: {r.Name} (Tags: {string.Join(", ", r.Tags)}, Priority: {r.Priority})"))}
+                Traditional Roles:
+                {string.Join("\n", traditionalRoles.Select(r => $"- {r.RoleId}: {r.Name} (Tags: {string.Join(", ", r.Tags)}, Priority: {r.Priority})"))}
+                
+                Contextual-Aware Roles (Enhanced capabilities):
+                {string.Join("\n", contextualRoles.Select(r => $"- {r.RoleId}: {r.Name} (Tags: {string.Join(", ", r.Tags)}, Priority: {r.Priority}, State: {r.CurrentState}, Vitals: Health={r.Vitals.Health:F0}, Energy={r.Vitals.Energy:F0})"))}
                 
                 Selection Criteria:
                 - Relevance to user intent
                 - Role capabilities and tags
+                - Current bot state and vital levels (for contextual roles)
                 - Execution efficiency
                 - Expected output quality
+                - Contextual awareness benefits
+                
+                Prefer contextual roles when:
+                - Complex environmental adaptation is needed
+                - User engagement tracking is important
+                - State-based behavior is beneficial
+                - Location/spatial awareness adds value
                 
                 Return the selected role IDs in order of execution priority.
                 """;
@@ -142,6 +157,7 @@ namespace HybridBot.Core
             
             return selectedRoleIds.Select(id => _roleRegistry.GetRole(id))
                                  .Where(role => role != null)
+                                 .Cast<IBotRole>()
                                  .ToList();
         }
         
@@ -380,6 +396,255 @@ namespace HybridBot.Core
             var evaluation = await _kernel.InvokePromptAsync(evaluationPrompt);
             return evaluation.ToString().ToUpper().Contains("CONTINUE");
         }
+        
+        /// <summary>
+        /// Enhanced processing specifically for contextual bots with layered context adaptation
+        /// </summary>
+        public async Task<BotResponse> ProcessWithContextualAdaptationAsync(
+            BotContext context, 
+            LayeredContext? layeredContext = null,
+            SemanticOrchestrationConfig? config = null)
+        {
+            config ??= new SemanticOrchestrationConfig();
+            
+            _logger.LogInformation("Processing request {RequestId} with contextual adaptation", context.RequestId);
+            
+            // Load conversation state
+            await _stateManager.LoadStateAsync(context);
+            
+            try
+            {
+                // Step 1: Create or enhance layered context if not provided
+                if (layeredContext == null)
+                {
+                    layeredContext = await CreateLayeredContextFromStandardContextAsync(context);
+                }
+                
+                // Step 2: Analyze context complexity and recommend contextual vs traditional roles
+                var contextAnalysis = await AnalyzeContextualComplexityAsync(context, layeredContext);
+                
+                // Step 3: Select contextual roles with enhanced awareness
+                var selectedRoles = await SelectContextualRolesAsync(context, layeredContext, contextAnalysis, config);
+                
+                // Step 4: Execute with contextual adaptation
+                var response = await ExecuteWithContextualAdaptationAsync(context, layeredContext, selectedRoles, config);
+                
+                // Step 5: Enhance response with contextual insights
+                var enhancedResponse = await EnhanceContextualResponseAsync(context, layeredContext, response, config);
+                
+                // Save updated state
+                await _stateManager.SaveStateAsync(context);
+                
+                _logger.LogInformation("Completed contextual adaptation processing for request {RequestId}", context.RequestId);
+                return enhancedResponse;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in contextual adaptation for request {RequestId}", context.RequestId);
+                
+                // Fallback to standard semantic processing
+                return await ProcessWithSemanticKernelAsync(context, config);
+            }
+        }
+        
+        private async Task<LayeredContext> CreateLayeredContextFromStandardContextAsync(BotContext context)
+        {
+            // Use Semantic Kernel to extract layered context from standard context
+            var contextExtractionPrompt = $"""
+                Extract detailed contextual information from the following bot context:
+                
+                User Input: "{context.Input}"
+                Conversation State: {string.Join(", ", context.State.Select(kvp => $"{kvp.Key}={kvp.Value}"))}
+                User ID: {context.UserId}
+                
+                Extract and categorize information into:
+                1. Environmental factors (weather, location, conditions, resources, threats)
+                2. Player/User actions (recent activities, engagement level, preferences)
+                3. Temporal context (time patterns, session duration, historical data)
+                4. Social context (relationship level, sentiment, conversation topics)
+                
+                Return structured data that can be used for contextual bot adaptation.
+                """;
+                
+            var extractionResult = await _kernel.InvokePromptAsync(contextExtractionPrompt);
+            
+            // Parse the result and create LayeredContext
+            return ParseLayeredContextFromSemanticResult(extractionResult.ToString(), context);
+        }
+        
+        private async Task<ContextAnalysis> AnalyzeContextualComplexityAsync(BotContext context, LayeredContext layeredContext)
+        {
+            var complexityPrompt = $"""
+                Analyze the complexity and contextual requirements for this request:
+                
+                User Input: "{context.Input}"
+                Environmental Complexity: {layeredContext.Environment.Conditions.Count} conditions, {layeredContext.Environment.ThreatLevels.Count} threats
+                Player Engagement: {layeredContext.PlayerActions.EngagementLevel}
+                Social Complexity: {layeredContext.Social.ConversationTopics.Count} topics
+                
+                Determine:
+                1. Does this request benefit from contextual awareness? (yes/no)
+                2. Complexity Score (0.0-1.0)
+                3. Recommended bot capabilities (state management, vital tracking, geospatial, etc.)
+                4. Priority for contextual vs traditional roles
+                
+                Return structured analysis.
+                """;
+                
+            var analysisResult = await _kernel.InvokePromptAsync(complexityPrompt);
+            return ParseContextAnalysis(analysisResult.ToString());
+        }
+        
+        private async Task<List<IBotRole>> SelectContextualRolesAsync(
+            BotContext context, 
+            LayeredContext layeredContext, 
+            ContextAnalysis analysis,
+            SemanticOrchestrationConfig config)
+        {
+            var availableRoles = _roleRegistry.GetCapableRoles(context).ToList();
+            var contextualRoles = availableRoles.OfType<IContextualBotRole>().ToList();
+            
+            if (!contextualRoles.Any())
+            {
+                _logger.LogWarning("No contextual roles available, falling back to standard role selection");
+                return await SelectRolesWithSemanticKernelAsync(context, new IntentAnalysis(), config);
+            }
+            
+            var selectionPrompt = $"""
+                Select optimal contextual roles for this complex request:
+                
+                Context Analysis: {analysis}
+                User Intent: "{context.Input}"
+                
+                Available Contextual Roles:
+                {string.Join("\n", contextualRoles.Select(r => 
+                    $"- {r.RoleId}: {r.Name} " +
+                    $"(State: {r.CurrentState}, Health: {r.Vitals.Health:F0}, Energy: {r.Vitals.Energy:F0}, " +
+                    $"Tags: {string.Join(", ", r.Tags)})"))}
+                
+                Consider:
+                - Current bot states and vital levels
+                - Contextual adaptation capabilities
+                - Environmental awareness needs
+                - Player engagement patterns
+                - Geospatial requirements
+                
+                Select roles that can best leverage contextual information.
+                """;
+                
+            var selectionResult = await _kernel.InvokePromptAsync(selectionPrompt);
+            var selectedRoleIds = ParseSelectedRoles(selectionResult.ToString());
+            
+            return selectedRoleIds.Select(id => _roleRegistry.GetRole(id))
+                                 .Where(role => role != null)
+                                 .Cast<IBotRole>()
+                                 .ToList();
+        }
+        
+        private async Task<BotResponse> ExecuteWithContextualAdaptationAsync(
+            BotContext context, 
+            LayeredContext layeredContext, 
+            List<IBotRole> selectedRoles,
+            SemanticOrchestrationConfig config)
+        {
+            var aggregatedResponse = new BotResponse
+            {
+                Content = "",
+                Metadata = new Dictionary<string, object>(),
+                UpdatedState = new Dictionary<string, object>()
+            };
+            
+            foreach (var role in selectedRoles)
+            {
+                try
+                {
+                    BotResponse stepResponse;
+                    
+                    // If it's a contextual role, use enhanced adaptation
+                    if (role is IContextualBotRole contextualRole)
+                    {
+                        _logger.LogDebug("Executing contextual role {RoleId} with layered context", role.RoleId);
+                        var contextualResponse = await contextualRole.AdaptToContextAsync(layeredContext);
+                        
+                        // Convert ContextualResponse to BotResponse
+                        stepResponse = new BotResponse
+                        {
+                            Content = contextualResponse.Content,
+                            IsComplete = contextualResponse.IsComplete,
+                            Metadata = new Dictionary<string, object>
+                            {
+                                ["contextual_adaptations"] = contextualResponse.ContextualAdaptations,
+                                ["environmental_observations"] = contextualResponse.EnvironmentalObservations,
+                                ["confidence_level"] = contextualResponse.ConfidenceLevel,
+                                ["state_change"] = contextualResponse.StateChange?.ToString() ?? "None",
+                                ["vital_changes"] = contextualResponse.VitalChanges.Count
+                            }
+                        };
+                    }
+                    else
+                    {
+                        // Standard execution for traditional roles
+                        _logger.LogDebug("Executing traditional role {RoleId}", role.RoleId);
+                        stepResponse = await role.ExecuteAsync(context);
+                    }
+                    
+                    // Merge responses
+                    await MergeResponsesAsync(aggregatedResponse, stepResponse, new ExecutionStep { Role = role });
+                    
+                    // Update context for next role
+                    foreach (var kvp in stepResponse.UpdatedState)
+                    {
+                        context.State[kvp.Key] = kvp.Value;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error executing role {RoleId} with contextual adaptation", role.RoleId);
+                    
+                    if (config.StopOnStepFailure)
+                        break;
+                }
+            }
+            
+            return aggregatedResponse;
+        }
+        
+        private async Task<BotResponse> EnhanceContextualResponseAsync(
+            BotContext context, 
+            LayeredContext layeredContext, 
+            BotResponse response,
+            SemanticOrchestrationConfig config)
+        {
+            if (!config.EnableResponseEnhancement)
+                return response;
+                
+            var enhancementPrompt = $"""
+                Enhance this contextually-adapted bot response:
+                
+                Original Response: "{response.Content}"
+                User Context: "{context.Input}"
+                Environmental Context: {layeredContext.Environment.Conditions.Count} conditions
+                Player Engagement: {layeredContext.PlayerActions.EngagementLevel}
+                Contextual Adaptations: {response.Metadata.GetValueOrDefault("contextual_adaptations", "None")}
+                
+                Enhancement goals:
+                - Leverage contextual insights for more relevant responses
+                - Highlight environmental awareness and adaptations
+                - Ensure appropriate engagement level matching
+                - Maintain contextual coherence
+                - Add value from layered context processing
+                
+                Return enhanced response that showcases contextual intelligence.
+                """;
+                
+            var enhancedContent = await _kernel.InvokePromptAsync(enhancementPrompt);
+            
+            response.Content = enhancedContent.ToString();
+            response.Metadata["enhanced_with_contextual_awareness"] = true;
+            response.Metadata["enhancement_timestamp"] = DateTime.UtcNow;
+            
+            return response;
+        }
     }
     
     /// <summary>
@@ -424,26 +689,38 @@ namespace HybridBot.Core
         public List<string> Dependencies { get; set; } = new();
         public string ExpectedOutput { get; set; } = "";
     }
-    
-    /// <summary>
-    /// Semantic Kernel plugin exposing hybrid bot functions
-    /// </summary>
-    public class HybridBotPlugin
+}
+
+/// <summary>
+/// Analysis of contextual complexity and requirements
+/// </summary>
+public class ContextAnalysis
+{
+    public bool RequiresContextualAwareness { get; set; }
+    public double ComplexityScore { get; set; }
+    public List<string> RecommendedCapabilities { get; set; } = new();
+    public bool PreferContextualRoles { get; set; }
+    public string Reasoning { get; set; } = "";
+}
+
+/// <summary>
+/// Semantic Kernel plugin exposing hybrid bot functions
+/// </summary>
+public class HybridBotPlugin
+{
+    [KernelFunction, Description("Get information about available bot roles")]
+    public string GetAvailableRoles(
+        [Description("Optional tag filter")] string? tagFilter = null)
     {
-        [KernelFunction, Description("Get information about available bot roles")]
-        public string GetAvailableRoles(
-            [Description("Optional tag filter")] string? tagFilter = null)
-        {
-            // This would be injected with actual role registry
-            return "responder, summarizer, test";
-        }
-        
-        [KernelFunction, Description("Analyze conversation context for role selection")]
-        public string AnalyzeConversationContext(
-            [Description("User input")] string userInput,
-            [Description("Conversation history")] string? history = null)
-        {
-            return $"Analyzed input: {userInput}. Suggested approach: conversational response.";
-        }
+        // This would be injected with actual role registry
+        return "responder, summarizer, test";
+    }
+    
+    [KernelFunction, Description("Analyze conversation context for role selection")]
+    public string AnalyzeConversationContext(
+        [Description("User input")] string userInput,
+        [Description("Conversation history")] string? history = null)
+    {
+        return $"Analyzed input: {userInput}. Suggested approach: conversational response.";
     }
 }

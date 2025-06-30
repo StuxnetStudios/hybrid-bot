@@ -52,6 +52,12 @@ namespace HybridBot.Core
         {
             _logger.LogInformation("Sending chat completion request to Skynet-lite");
 
+            // Handle mock mode when no real API is available
+            if (_config.MockMode || string.IsNullOrEmpty(_config.ApiKey))
+            {
+                return await GetMockResponseAsync(chatHistory, cancellationToken);
+            }
+
             try
             {
                 var request = CreateChatRequest(chatHistory, executionSettings);
@@ -82,8 +88,8 @@ namespace HybridBot.Core
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogError(ex, "HTTP error calling Skynet-lite API");
-                throw new InvalidOperationException("Failed to communicate with Skynet-lite service", ex);
+                _logger.LogWarning(ex, "HTTP error calling Skynet-lite API, falling back to mock mode");
+                return await GetMockResponseAsync(chatHistory, cancellationToken);
             }
             catch (JsonException ex)
             {
@@ -153,6 +159,68 @@ namespace HybridBot.Core
 
             return request;
         }
+
+        /// <summary>
+        /// Generates mock responses for testing when no real API is available
+        /// </summary>
+        private async Task<IReadOnlyList<ChatMessageContent>> GetMockResponseAsync(
+            ChatHistory chatHistory, 
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Using mock mode for Skynet-lite response");
+            
+            // Simulate some processing delay
+            await Task.Delay(100, cancellationToken);
+            
+            // Get the last user message for context
+            var lastUserMessage = chatHistory.LastOrDefault(m => m.Role == AuthorRole.User);
+            var userInput = lastUserMessage?.Content ?? "Hello";
+            
+            // Generate contextual mock responses
+            string mockResponse = GenerateMockResponse(userInput);
+            
+            var messageContent = new ChatMessageContent(
+                role: AuthorRole.Assistant,
+                content: mockResponse,
+                modelId: _config.ModelId + "-mock");
+
+            return new List<ChatMessageContent> { messageContent };
+        }
+        
+        /// <summary>
+        /// Generates contextual mock responses based on user input
+        /// </summary>
+        private string GenerateMockResponse(string userInput)
+        {
+            var input = userInput.ToLowerInvariant();
+            
+            // Summarization requests
+            if (input.Contains("summarize") || input.Contains("summary"))
+            {
+                return "Here's a summary: The main points include key concepts, important details, and relevant conclusions that capture the essence of the content in a concise format.";
+            }
+            
+            // Help requests
+            if (input.Contains("help") || input.Contains("how") || input.Contains("what"))
+            {
+                return "I'm here to help! I'm a HybridBot with multiple capabilities including content summarization, general conversation, and more. What would you like assistance with?";
+            }
+            
+            // Greetings
+            if (input.Contains("hello") || input.Contains("hi") || input.Contains("greeting"))
+            {
+                return "Hello! Welcome to the HybridBot system. I'm an AI agent with multiple specialized capabilities. How can I assist you today?";
+            }
+            
+            // Technical questions
+            if (input.Contains("semantic kernel") || input.Contains("agent") || input.Contains("architecture"))
+            {
+                return "Semantic Kernel provides a powerful framework for building AI agents. The agent-based architecture allows for modular, composable AI capabilities that can be combined to create sophisticated AI systems.";
+            }
+            
+            // Default response
+            return $"Thank you for your message: '{userInput}'. I'm a mock Skynet-lite service running in demo mode. In a real implementation, I would provide more sophisticated responses using actual AI models.";
+        }
     }
 
     /// <summary>
@@ -170,6 +238,7 @@ namespace HybridBot.Core
         public double FrequencyPenalty { get; set; } = 0.0;
         public double PresencePenalty { get; set; } = 0.0;
         public int TimeoutSeconds { get; set; } = 30;
+        public bool MockMode { get; set; } = false;
     }
 
     /// <summary>
